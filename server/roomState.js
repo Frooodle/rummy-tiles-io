@@ -70,7 +70,8 @@ function createRoom(roomId) {
     draftPlayer: null,
     moveHistory: [],
     moveHistoryDetailed: [],
-    jokerLocked: false
+    jokerLocked: false,
+    chatHistory: []
   };
 }
 
@@ -96,6 +97,7 @@ function startGame(room) {
   room.moveHistory = [];
   room.moveHistoryDetailed = [];
   room.jokerLocked = Boolean(room.jokerLocked);
+  room.chatHistory = room.chatHistory || [];
 
   room.order.forEach((name) => {
     const player = room.players.get(name);

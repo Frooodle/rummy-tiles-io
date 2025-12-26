@@ -80,6 +80,7 @@ function broadcastState(room) {
       lastMove: room.lastMove,
       moveHistory: room.moveHistory,
       moveHistoryDetailed: redactMoveHistoryDetails(room, name),
+      chatHistory: room.chatHistory,
       draftTable: room.draftTable,
       draftPlayer: room.draftPlayer,
       table: room.table,
@@ -807,6 +808,24 @@ wss.on('connection', (ws) => {
         return;
       }
       room.jokerLocked = Boolean(data.jokerLocked);
+      broadcastState(room);
+      return;
+    }
+
+    if (data.type === 'chat') {
+      const text = String(data.text || '').trim();
+      if (!text) {
+        return;
+      }
+      const clipped = text.slice(0, 240);
+      room.chatHistory.push({
+        player: playerName,
+        text: clipped,
+        ts: Date.now()
+      });
+      if (room.chatHistory.length > 200) {
+        room.chatHistory.shift();
+      }
       broadcastState(room);
       return;
     }

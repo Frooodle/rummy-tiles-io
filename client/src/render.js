@@ -4,29 +4,49 @@ const jokerUrl = '/favicon.svg';
 let historyStickToBottom = true;
 let historyScrollTop = 0;
 let lastHistoryCount = 0;
+let chatStickToBottom = true;
+let chatScrollTop = 0;
+let lastChatCount = 0;
 
-export function renderJoin(app, { errorMessage, storedRoom, storedName, mode, onModeChange, onJoin }) {
+export function renderJoin(app, { errorMessage, storedRoom, storedName, mode, onModeChange, onJoin, themeMode, onToggleTheme }) {
   const roomValue = storedRoom || '';
+  document.body.dataset.theme = themeMode || 'light';
   app.innerHTML = `
     <div class="join">
-      <h1>Tile Rummy Rooms</h1>
-      ${errorMessage ? `<div class="error">${errorMessage}</div>` : ''}
-      <div class="controls">
-        <button id="mode-create" class="${mode === 'create' ? '' : 'secondary'}">Create room</button>
-        <button id="mode-join" class="${mode === 'join' ? '' : 'secondary'}">Join room</button>
+      <div class="join-theme">
+        <button id="toggle-theme" class="secondary">${themeMode === 'dark' ? 'Dark mode' : 'Light mode'}</button>
       </div>
-      ${mode === 'join' ? `
-        <label for="room">Room ID</label>
-        <input id="room" value="${roomValue}" placeholder="4-character code or link" />
-      ` : `<div class="notice">A 4-character room code will be created for you.</div>`}
-      <label for="name">Account name</label>
-      <input id="name" value="${storedName}" placeholder="Your name" maxlength="12" />
-      <button id="join">${mode === 'create' ? 'Create room' : 'Join room'}</button>
-      <p class="notice">Reconnect by using the same room ID + name.</p>
+      <div class="join-hero">
+        <div class="brand-mark">TR</div>
+        <div>
+          <h1>Tile Rummy</h1>
+          <p class="tagline">Race to meld. Outplay the table. Stay sharp.</p>
+        </div>
+      </div>
+      ${errorMessage ? `<div class="error">${errorMessage}</div>` : ''}
+      <div class="join-card">
+        <div class="mode-tabs">
+          <button id="mode-create" class="${mode === 'create' ? 'active' : ''}">Create</button>
+          <button id="mode-join" class="${mode === 'join' ? 'active' : ''}">Join</button>
+        </div>
+        ${mode === 'join' ? `
+          <label for="room">Room code</label>
+          <input id="room" value="${roomValue}" placeholder="4-character code or link" />
+        ` : `<div class="notice">A 4-character room code will be created for you.</div>`}
+        <label for="name">Player name</label>
+        <input id="name" value="${storedName}" placeholder="Your name" maxlength="12" />
+        <button id="join" class="cta">${mode === 'create' ? 'Create room' : 'Join room'}</button>
+        <p class="notice">Reconnect by using the same room code + name.</p>
+      </div>
+      <div class="join-meta">
+        <div class="meta-pill">Fast turns · Smart hints · Live drafting</div>
+        <div class="meta-pill">Play on desktop or laptop</div>
+      </div>
     </div>
   `;
   app.querySelector('#mode-create').addEventListener('click', () => onModeChange('create'));
   app.querySelector('#mode-join').addEventListener('click', () => onModeChange('join'));
+  app.querySelector('#toggle-theme').addEventListener('click', () => onToggleTheme());
   app.querySelector('#join').addEventListener('click', () => {
     const roomId = mode === 'join' ? app.querySelector('#room').value.trim() : '';
     const name = app.querySelector('#name').value.trim();
@@ -46,6 +66,8 @@ export function renderGame(app, context) {
     hintMessage,
     groupFaceMode,
     colorBlindMode,
+    themeMode,
+    showHelp,
     inviteLink,
     handlers
   } = context;
@@ -72,6 +94,13 @@ export function renderGame(app, context) {
 
   document.body.dataset.groupFace = groupFaceMode || 'classic';
   document.body.dataset.colorblind = colorBlindMode ? 'on' : 'off';
+  document.body.dataset.theme = themeMode || 'light';
+
+  const helpButton = document.createElement('button');
+  helpButton.className = 'secondary';
+  helpButton.textContent = 'How to play';
+  helpButton.addEventListener('click', () => handlers.toggleHelp());
+  header.appendChild(helpButton);
 
   if (yourTurn) {
     const banner = document.createElement('div');
@@ -157,6 +186,168 @@ export function renderGame(app, context) {
     app.appendChild(modalWrap);
   }
 
+  if (showHelp) {
+    const helpWrap = document.createElement('div');
+    helpWrap.className = 'modal-backdrop';
+    const helpModal = document.createElement('div');
+    helpModal.className = 'modal panel help-modal';
+
+    const title = document.createElement('h2');
+    title.textContent = 'How to play';
+    helpModal.appendChild(title);
+
+    const tabs = document.createElement('div');
+    tabs.className = 'help-tabs';
+    tabs.innerHTML = `
+      <button class="active" data-tab="rules">Game rules</button>
+      <button data-tab="controls">Playing online</button>
+    `;
+    helpModal.appendChild(tabs);
+
+    const rules = document.createElement('div');
+    rules.className = 'help-panel rules active';
+    rules.innerHTML = `
+      <h3>Goal</h3>
+      <p>Be the first to empty your hand by creating sets (same number, different colors) and runs (same color, consecutive numbers).</p>
+      <div class="help-tiles">
+        <div class="help-pair">
+          <div class="help-group">
+            <div class="help-group-title">Set example</div>
+            <div class="help-tiles-row">
+              <span class="tile tile-mini red">7</span>
+              <span class="tile tile-mini blue">7</span>
+              <span class="tile tile-mini black">7</span>
+            </div>
+          </div>
+          <div class="help-group">
+            <div class="help-group-title">Invalid set</div>
+            <div class="help-tiles-row">
+              <span class="tile tile-mini red">9</span>
+              <span class="tile tile-mini red">9</span>
+              <span class="tile tile-mini blue">9</span>
+            </div>
+            <div class="help-group-note">Sets cannot repeat a color.</div>
+          </div>
+        </div>
+        <div class="help-pair">
+          <div class="help-group">
+            <div class="help-group-title">Run example</div>
+            <div class="help-tiles-row">
+              <span class="tile tile-mini orange">9</span>
+              <span class="tile tile-mini orange">10</span>
+              <span class="tile tile-mini orange">11</span>
+            </div>
+          </div>
+          <div class="help-group">
+            <div class="help-group-title">Not allowed</div>
+            <div class="help-tiles-row">
+              <span class="tile tile-mini red">5</span>
+              <span class="tile tile-mini blue">6</span>
+              <span class="tile tile-mini red">7</span>
+            </div>
+            <div class="help-group-note">Runs must stay in one color.</div>
+          </div>
+        </div>
+        <div class="help-group">
+          <div class="help-group-title">Joker example</div>
+          <div class="help-tiles-row">
+            <span class="tile tile-mini blue">4</span>
+            <span class="tile tile-mini joker">J</span>
+            <span class="tile tile-mini blue">6</span>
+          </div>
+          <div class="help-group-note">Joker stands in for the missing 5.</div>
+        </div>
+      </div>
+      <h3>Initial meld</h3>
+      <p>Your first meld must total at least ${state.initialMeld} points. Until you reach that, you cannot change any existing table tiles.</p>
+      <h3>Table rules</h3>
+      <p>After your initial meld, you may rearrange the table, but all tiles already on the table must remain on the table.</p>
+      <p>Every group on the table must always be valid (sets or runs of 3+). You can split and merge groups, but you cannot temporarily break groups below 3 while rearranging.</p>
+      <p>Direct tile swapping isn’t allowed unless it’s done through valid splits/merges that keep all groups legal throughout.</p>
+      <div class="help-tiles">
+        <div class="help-pair">
+          <div class="help-group">
+            <div class="help-group-title">Valid rearrange</div>
+            <div class="help-tiles-row">
+              <span class="tile tile-mini blue">7</span>
+              <span class="tile tile-mini blue">8</span>
+              <span class="tile tile-mini blue">9</span>
+              <span class="tile tile-mini blue">10</span>
+              <span class="tile tile-mini blue">11</span>
+              <span class="tile tile-mini blue">12</span>
+              <span class="tile tile-mini blue">13</span>
+            </div>
+            <div class="help-group-note">Split into 7-8-9 and 10-11-12-13. Now the 10 (or 13) can be moved into another valid group, and you can insert a different blue 10 if you have one.</div>
+          </div>
+          <div class="help-group">
+            <div class="help-group-title">Invalid rearrange</div>
+            <div class="help-tiles-row">
+              <span class="tile tile-mini red">3</span>
+              <span class="tile tile-mini red">4</span>
+              <span class="tile tile-mini red">5</span>
+              <span class="tile tile-mini red">6</span>
+            </div>
+            <div class="help-group-note">Cannot leave a 2-tile group (e.g., 3-4) at any step. You could still take the 3 or 6 since 4-5-6 stays valid.</div>
+          </div>
+        </div>
+      </div>
+      <p>You must add at least one tile from your hand when you submit your turn.</p>
+      <h3>Sets & runs</h3>
+      <p>Sets are 3–4 tiles of the same value in different colors. Runs are 3+ consecutive tiles in the same color.</p>
+      <h3>Jokers</h3>
+      <p>Jokers can stand in for any tile. This room uses ${state.jokerLocked ? 'locked jokers (cannot move them)' : 'replaceable jokers (you may move them if the original group stays valid)'}.</p>
+      <h3>End of round</h3>
+      <p>The round ends when someone goes out or the deck runs dry and everyone passes.</p>
+    `;
+    helpModal.appendChild(rules);
+
+    const controls = document.createElement('div');
+    controls.className = 'help-panel controls';
+    controls.innerHTML = `
+      <h3>Select & build</h3>
+      <p>Click tiles to select, then use <strong>Create group</strong> or <strong>Add selected tiles</strong>.</p>
+      <h3>Draft view</h3>
+      <p>Your moves stay in draft until you hit <strong>Submit plays</strong>. Use <strong>Reset turn</strong> or <strong>Undo</strong> if needed.</p>
+      <h3>Drawing</h3>
+      <p><strong>Draw tile (no play)</strong> ends your turn without playing. You’ll be prompted if you have unsent draft changes.</p>
+      <h3>Hints</h3>
+      <p>Use <strong>Hint</strong> for a staged nudge. Each click reveals more about a possible move.</p>
+      <h3>Auto play</h3>
+      <p>Toggle <strong>Auto play</strong> to let the AI finish your turns until you disable it.</p>
+      <h3>Sorting</h3>
+      <p>Toggle color or number sorting to organize your hand. Shuffle is available for quick scanning.</p>
+    `;
+    helpModal.appendChild(controls);
+
+    const actions = document.createElement('div');
+    actions.className = 'controls modal-actions';
+    const close = document.createElement('button');
+    close.textContent = 'Close';
+    close.className = 'secondary';
+    close.addEventListener('click', () => handlers.toggleHelp());
+    actions.appendChild(close);
+    helpModal.appendChild(actions);
+
+    helpWrap.addEventListener('click', (event) => {
+      if (event.target === helpWrap) {
+        handlers.toggleHelp();
+      }
+    });
+
+    helpWrap.appendChild(helpModal);
+    app.appendChild(helpWrap);
+
+    helpWrap.querySelectorAll('.help-tabs button').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        helpWrap.querySelectorAll('.help-tabs button').forEach((btn) => btn.classList.remove('active'));
+        helpWrap.querySelectorAll('.help-panel').forEach((panel) => panel.classList.remove('active'));
+        tab.classList.add('active');
+        const target = tab.dataset.tab;
+        helpWrap.querySelector(`.help-panel.${target}`)?.classList.add('active');
+      });
+    });
+  }
+
   const layout = document.createElement('div');
   layout.className = 'layout';
 
@@ -191,21 +382,27 @@ export function renderGame(app, context) {
 
   // Scores panel removed for simpler UI.
 
-    if (!state.started) {
+  if (!state.started) {
       const lobbyPanel = document.createElement('div');
       lobbyPanel.className = 'panel stack';
       const lobbyTitle = document.createElement('h2');
       lobbyTitle.textContent = 'Lobby';
       lobbyPanel.appendChild(lobbyTitle);
 
-    const controls = document.createElement('div');
-    controls.className = 'controls';
+    const lobbyCta = document.createElement('div');
+    lobbyCta.className = 'lobby-cta';
 
     const startButton = document.createElement('button');
     startButton.textContent = state.roundOver ? 'Start next round' : 'Start game';
     startButton.disabled = !isHost || state.players.length < 2;
+    if (!startButton.disabled) {
+      startButton.classList.add('primary-good');
+    }
     startButton.addEventListener('click', () => handlers.startRound());
-    controls.appendChild(startButton);
+    lobbyCta.appendChild(startButton);
+
+    const controls = document.createElement('div');
+    controls.className = 'controls';
 
     const addAiButton = document.createElement('button');
     addAiButton.textContent = 'Add AI';
@@ -228,6 +425,7 @@ export function renderGame(app, context) {
     removeAiButton.addEventListener('click', () => handlers.removeAi());
     controls.appendChild(removeAiButton);
 
+      lobbyPanel.appendChild(lobbyCta);
       lobbyPanel.appendChild(controls);
 
       const rulesRow = document.createElement('div');
@@ -341,6 +539,79 @@ export function renderGame(app, context) {
     side.appendChild(historyPanel);
   }
 
+  if (!state.started) {
+    layout.classList.add('lobby-layout');
+    layout.appendChild(side);
+    app.appendChild(layout);
+    return;
+  }
+
+  const chatPanel = document.createElement('div');
+  chatPanel.className = 'panel stack chat';
+  const chatTitle = document.createElement('h2');
+  chatTitle.textContent = 'Chat';
+  chatPanel.appendChild(chatTitle);
+
+  const chatList = document.createElement('div');
+  chatList.className = 'chat-list';
+  const chatBanner = document.createElement('div');
+  chatBanner.className = 'chat-banner';
+  chatBanner.textContent = 'New messages';
+  chatBanner.addEventListener('click', () => {
+    chatStickToBottom = true;
+    chatList.scrollTop = chatList.scrollHeight;
+    chatBanner.classList.remove('active');
+  });
+  (state.chatHistory || []).slice(-100).forEach((entry) => {
+    const row = document.createElement('div');
+    row.className = 'chat-item';
+    row.innerHTML = `<span class="chat-name">${entry.player}</span><span class="chat-text">${entry.text}</span>`;
+    chatList.appendChild(row);
+  });
+  chatList.addEventListener('scroll', () => {
+    chatScrollTop = chatList.scrollTop;
+    const nearBottom = chatList.scrollTop + chatList.clientHeight >= chatList.scrollHeight - 8;
+    chatStickToBottom = nearBottom;
+    if (nearBottom) {
+      chatBanner.classList.remove('active');
+    }
+  });
+  const chatCount = (state.chatHistory || []).length;
+  if (chatCount > lastChatCount && chatStickToBottom) {
+    chatList.scrollTop = chatList.scrollHeight;
+  } else {
+    chatList.scrollTop = Math.min(chatScrollTop, chatList.scrollHeight);
+  }
+  if (chatCount > lastChatCount && !chatStickToBottom) {
+    chatBanner.classList.add('active');
+  }
+  lastChatCount = chatCount;
+  chatPanel.appendChild(chatBanner);
+  chatPanel.appendChild(chatList);
+
+  const chatForm = document.createElement('form');
+  chatForm.className = 'chat-form';
+  const chatInput = document.createElement('input');
+  chatInput.type = 'text';
+  chatInput.maxLength = 240;
+  chatInput.placeholder = 'Type a message...';
+  const chatButton = document.createElement('button');
+  chatButton.type = 'submit';
+  chatButton.textContent = 'Send';
+  chatForm.appendChild(chatInput);
+  chatForm.appendChild(chatButton);
+  chatForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text) {
+      return;
+    }
+    handlers.sendChat(text);
+    chatInput.value = '';
+  });
+  chatPanel.appendChild(chatForm);
+  side.appendChild(chatPanel);
+
   layout.appendChild(side);
 
   const tablePanel = document.createElement('div');
@@ -410,7 +681,7 @@ export function renderGame(app, context) {
     const dragSide = handlers.getGroupDragOverSide ? handlers.getGroupDragOverSide() : null;
     const dragMarker = isDragOver ? `drop-target-group drop-target-${dragSide || 'before'}` : '';
     groupEl.className = `group ${showDraft ? 'ghost' : ''} ${dragMarker}`;
-    if (yourTurn) {
+  if (yourTurn) {
       groupEl.addEventListener('dragenter', (event) => {
         event.preventDefault();
         groupEl.classList.add('drop-target');
@@ -581,6 +852,12 @@ export function renderGame(app, context) {
   colorBlindButton.className = colorBlindMode ? '' : 'secondary';
   colorBlindButton.addEventListener('click', () => handlers.toggleColorBlind());
   handControls.appendChild(colorBlindButton);
+
+  const themeButton = document.createElement('button');
+  themeButton.textContent = themeMode === 'dark' ? 'Theme: Dark' : 'Theme: Light';
+  themeButton.className = 'secondary';
+  themeButton.addEventListener('click', () => handlers.toggleTheme());
+  handControls.appendChild(themeButton);
 
   const autoPlayButton = document.createElement('button');
   autoPlayButton.textContent = autoPlay ? 'Auto play: On' : 'Auto play: Off';

@@ -26,6 +26,7 @@ let errorMessage = '';
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 let disconnectNoticeTimer = null;
+let showHelp = false;
 
 const draft = {
   table: null,
@@ -50,7 +51,8 @@ let hintStep = 0;
 let lastHintTurnId = null;
 let draftDirty = false;
 let groupFaceMode = localStorage.getItem('rummi-group-face') || 'transparent';
-let colorBlindMode = localStorage.getItem('rummi-colorblind') === 'true';
+let colorBlindMode = localStorage.getItem('rummi-colorblind') !== 'false';
+let themeMode = localStorage.getItem('rummi-theme') || 'light';
 const debugEnabled = true;
 let lastStateSummary = null;
 
@@ -240,6 +242,24 @@ function toggleColorBlind() {
   colorBlindMode = !colorBlindMode;
   localStorage.setItem('rummi-colorblind', String(colorBlindMode));
   render();
+}
+
+function toggleTheme() {
+  themeMode = themeMode === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('rummi-theme', themeMode);
+  render();
+}
+
+function toggleHelp() {
+  showHelp = !showHelp;
+  render();
+}
+
+function sendChat(text) {
+  if (!text) {
+    return;
+  }
+  send(ws, { type: 'chat', text });
 }
 
 function resetDraft() {
@@ -618,6 +638,8 @@ function render() {
       storedRoom: initialRoom,
       storedName,
       mode: joinMode,
+      themeMode,
+      onToggleTheme: toggleTheme,
       onModeChange: (mode) => {
         joinMode = mode;
         render();
@@ -640,6 +662,8 @@ function render() {
     hintMessage,
     groupFaceMode,
     colorBlindMode,
+    themeMode,
+    showHelp,
     inviteLink: buildInviteLink(state.roomId),
     handlers: {
       startRound,
@@ -654,6 +678,9 @@ function render() {
       shuffleHand,
       cycleGroupFace,
       toggleColorBlind,
+      toggleTheme,
+      toggleHelp,
+      sendChat,
       toggleAutoPlay,
       setRules,
       resetDraft,
