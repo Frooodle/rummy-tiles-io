@@ -2,9 +2,7 @@
 
 Browser-based multiplayer Tile Rummy with room IDs and reconnects (same room ID + name).
 
-Main link: https://rummy-tiles-io.onrender.com/
-
-Demo: https://rummy-tiles-io.onrender.com/
+Demo link: https://rummy-tiles-io.onrender.com/
 
 ## Dev setup
 
