@@ -20,7 +20,7 @@ export function renderJoin(app, { errorMessage, storedRoom, storedName, mode, on
         <div class="brand-mark">TR</div>
         <div>
           <h1>Tile Rummy</h1>
-          <p class="tagline">Race to meld. Outplay the table. Stay sharp.</p>
+          <p class="tagline">Completely free. Create a room, invite friends, up to 5 players, have fun!</p>
         </div>
       </div>
       ${errorMessage ? `<div class="error">${errorMessage}</div>` : ''}
@@ -39,8 +39,8 @@ export function renderJoin(app, { errorMessage, storedRoom, storedName, mode, on
         <p class="notice">Reconnect by using the same room code + name.</p>
       </div>
       <div class="join-meta">
-        <div class="meta-pill">Fast turns · Smart hints · Live drafting</div>
         <div class="meta-pill">Play on desktop or laptop</div>
+        <a class="meta-link" href="https://github.com/Frooodle/rummy-tiles-io" target="_blank" rel="noreferrer">GitHub</a>
       </div>
     </div>
   `;

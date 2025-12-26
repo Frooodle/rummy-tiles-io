@@ -642,6 +642,33 @@ body[data-theme="dark"] .mode-tabs {
   border-radius: 999px;
 }
 
+.meta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--brand-deep);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(14, 165, 160, 0.2);
+}
+
+.meta-link:hover {
+  background: rgba(14, 165, 160, 0.08);
+}
+
+body[data-theme="dark"] .meta-link {
+  color: #bff7ef;
+  border-color: rgba(45, 212, 199, 0.3);
+}
+
+body[data-theme="dark"] .meta-link:hover {
+  background: rgba(45, 212, 199, 0.12);
+}
+
 body[data-theme="dark"] .meta-pill {
   background: rgba(45, 212, 199, 0.2);
   color: #e6fffb;
