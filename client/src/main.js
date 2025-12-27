@@ -1,5 +1,5 @@
 import './style.css';
-import { connect, send } from './net.js';
+import { createSocketManager } from './socket.js';
 import {
   cloneTable,
   collectSelectedTiles,
@@ -20,11 +20,8 @@ import { renderJoin, renderGame } from './render.js';
 
 const app = document.querySelector('#app');
 
-let ws = null;
 let state = null;
 let errorMessage = '';
-let reconnectTimer = null;
-let reconnectAttempts = 0;
 let disconnectNoticeTimer = null;
 let showHelp = false;
 
@@ -66,11 +63,6 @@ function onState(nextState) {
   state = nextState;
   errorMessage = '';
   hintMessage = '';
-  reconnectAttempts = 0;
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
   if (disconnectNoticeTimer) {
     clearTimeout(disconnectNoticeTimer);
     disconnectNoticeTimer = null;
@@ -85,6 +77,7 @@ function onState(nextState) {
     url.searchParams.set('room', state.roomId);
     window.history.replaceState({}, '', url.toString());
     localStorage.setItem('rummi-room', state.roomId);
+    socket.setReconnectPayload({ type: 'join', roomId: state.roomId, name: state.you.name });
   }
   syncDraftState(state, draft);
   pruneSelection(state, draft);
@@ -107,9 +100,18 @@ function onClose() {
     errorMessage = 'Disconnected. Trying to reconnect...';
     render();
   }, 1200);
-  scheduleReconnect();
   render();
 }
+
+const socket = createSocketManager({
+  onState,
+  onHint: (payload) => {
+    hintMessage = buildHintMessage(payload, hintStep);
+    render();
+  },
+  onError,
+  onClose
+});
 
 function joinRoom(roomId, name, mode) {
   if (!name) {
@@ -123,42 +125,14 @@ function joinRoom(roomId, name, mode) {
     return;
   }
   localStorage.setItem('rummi-name', name);
-  ws = connect({
-    onOpen: (socket) => {
-      const payload = mode === 'create'
-        ? { type: 'createRoom', name }
-        : { type: 'join', roomId, name };
-      socket.send(JSON.stringify(payload));
-    },
-    onState,
-    onHint: (payload) => {
-      hintMessage = buildHintMessage(payload, hintStep);
-      render();
-    },
-    onError,
-    onClose
-  });
-}
-
-function scheduleReconnect() {
-  if (reconnectTimer) {
-    return;
-  }
-  const roomId = state && state.roomId ? state.roomId : (localStorage.getItem('rummi-room') || '');
-  const name = localStorage.getItem('rummi-name') || '';
-  if (!roomId || !name) {
-    return;
-  }
-  const delay = Math.min(1000 * (2 ** reconnectAttempts), 8000);
-  reconnectAttempts += 1;
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null;
-    joinRoom(roomId, name, 'join');
-  }, delay);
+  const payload = mode === 'create'
+    ? { type: 'createRoom', name }
+    : { type: 'join', roomId, name };
+  socket.connect(payload);
 }
 
 function startRound() {
-  send(ws, { type: 'startGame' });
+  socket.send({ type: 'startGame' });
 }
 
 function drawTile() {
@@ -169,7 +143,7 @@ function drawTile() {
     }
   }
   debugLog('draw', { turnId: state ? state.turnId : null });
-  send(ws, { type: 'endTurn' });
+  socket.send({ type: 'endTurn' });
   lastDrawnId = null;
 }
 
@@ -178,7 +152,7 @@ function submitTurn() {
     return;
   }
   debugLog('submitTurn', { turnId: state.turnId, tiles: flattenTableIds(draft.table) });
-  send(ws, {
+  socket.send({
     type: 'submitTurn',
     turnId: state.turnId,
     table: serializeTable(draft.table)
@@ -190,23 +164,23 @@ function submitTurn() {
 }
 
 function sortTable() {
-  send(ws, { type: 'sortTable' });
+  socket.send({ type: 'sortTable' });
 }
 
 function addAi(level = 'basic') {
-  send(ws, { type: 'addAi', level });
+  socket.send({ type: 'addAi', level });
 }
 
 function removeAi() {
-  send(ws, { type: 'removeAi' });
+  socket.send({ type: 'removeAi' });
 }
 
 function toggleAutoPlay(enabled) {
-  send(ws, { type: 'toggleAutoPlay', enabled });
+  socket.send({ type: 'toggleAutoPlay', enabled });
 }
 
 function setRules(jokerLocked) {
-  send(ws, { type: 'setRules', jokerLocked });
+  socket.send({ type: 'setRules', jokerLocked });
 }
 
 function setSortMode(mode) {
@@ -259,7 +233,7 @@ function sendChat(text) {
   if (!text) {
     return;
   }
-  send(ws, { type: 'chat', text });
+  socket.send({ type: 'chat', text });
 }
 
 function resetDraft() {
@@ -767,7 +741,7 @@ function sendDraftUpdate() {
     return;
   }
   debugLog('draftUpdate', { turnId: state.turnId, tiles: flattenTableIds(draft.table) });
-  send(ws, {
+  socket.send({
     type: 'draftUpdate',
     turnId: state.turnId,
     table: serializeTable(draft.table)
@@ -803,7 +777,7 @@ function requestHint() {
     return;
   }
   hintStep += 1;
-  send(ws, { type: 'hint', step: hintStep });
+  socket.send({ type: 'hint', step: hintStep });
 }
 
 function canRemoveFromGroups(table, tileIds) {

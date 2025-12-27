@@ -34,6 +34,15 @@ npm run build
 npm start
 ```
 
+## Template scaffold
+
+Use the adapter + room manager layout to build new IO games:
+
+- Adapter contract: `docs/adapter-interface.md`
+- Minimal scaffold: `templates/blank-game/README.md`
+- New repo checklist: `docs/new-game-repo.md`
+- Shared theme CSS: `client/src/ui/theme.css`
+
 ## Docker
 
 ```bash

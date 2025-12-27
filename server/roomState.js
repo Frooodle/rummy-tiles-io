@@ -71,7 +71,8 @@ function createRoom(roomId) {
     moveHistory: [],
     moveHistoryDetailed: [],
     jokerLocked: false,
-    chatHistory: []
+    chatHistory: [],
+    lastActivity: Date.now()
   };
 }
 

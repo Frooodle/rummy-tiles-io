@@ -1,57 +1,13 @@
 import { isValidGroupClient, isValidTableClient, sortTiles, sortTilesByValue } from './draft.js';
+import { renderJoinView, buildRoomShell } from './ui/roomShell.js';
 const jokerUrl = '/favicon.svg';
 
 let historyStickToBottom = true;
 let historyScrollTop = 0;
 let lastHistoryCount = 0;
-let chatStickToBottom = true;
-let chatScrollTop = 0;
-let lastChatCount = 0;
 
 export function renderJoin(app, { errorMessage, storedRoom, storedName, mode, onModeChange, onJoin, themeMode, onToggleTheme }) {
-  const roomValue = storedRoom || '';
-  document.body.dataset.theme = themeMode || 'light';
-  app.innerHTML = `
-    <div class="join">
-      <div class="join-theme">
-        <button id="toggle-theme" class="secondary">${themeMode === 'dark' ? 'Dark mode' : 'Light mode'}</button>
-      </div>
-      <div class="join-hero">
-        <div class="brand-mark">TR</div>
-        <div>
-          <h1>Tile Rummy</h1>
-          <p class="tagline">Completely free. Create a room, invite friends, up to 5 players, have fun!</p>
-        </div>
-      </div>
-      ${errorMessage ? `<div class="error">${errorMessage}</div>` : ''}
-      <div class="join-card">
-        <div class="mode-tabs">
-          <button id="mode-create" class="${mode === 'create' ? 'active' : ''}">Create</button>
-          <button id="mode-join" class="${mode === 'join' ? 'active' : ''}">Join</button>
-        </div>
-        ${mode === 'join' ? `
-          <label for="room">Room code</label>
-          <input id="room" value="${roomValue}" placeholder="4-character code or link" />
-        ` : `<div class="notice">A 4-character room code will be created for you.</div>`}
-        <label for="name">Player name</label>
-        <input id="name" value="${storedName}" placeholder="Your name" maxlength="12" />
-        <button id="join" class="cta">${mode === 'create' ? 'Create room' : 'Join room'}</button>
-        <p class="notice">Reconnect by using the same room code + name.</p>
-      </div>
-      <div class="join-meta">
-        <div class="meta-pill">Play on desktop or laptop</div>
-        <a class="meta-link" href="https://github.com/Frooodle/rummy-tiles-io" target="_blank" rel="noreferrer">GitHub</a>
-      </div>
-    </div>
-  `;
-  app.querySelector('#mode-create').addEventListener('click', () => onModeChange('create'));
-  app.querySelector('#mode-join').addEventListener('click', () => onModeChange('join'));
-  app.querySelector('#toggle-theme').addEventListener('click', () => onToggleTheme());
-  app.querySelector('#join').addEventListener('click', () => {
-    const roomId = mode === 'join' ? app.querySelector('#room').value.trim() : '';
-    const name = app.querySelector('#name').value.trim();
-    onJoin(roomId, name, mode);
-  });
+  renderJoinView(app, { errorMessage, storedRoom, storedName, mode, onModeChange, onJoin, themeMode, onToggleTheme });
 }
 
 export function renderGame(app, context) {
@@ -80,17 +36,15 @@ export function renderGame(app, context) {
   const showDraft = !yourTurn && state.draftTable && state.draftPlayer === state.currentPlayer;
   const tableToShow = showDraft ? state.draftTable : activeTable;
 
-  app.innerHTML = '';
-
-  const header = document.createElement('header');
-  header.innerHTML = `
-    <div>
-      <h1>Tile Rummy</h1>
-      <div class="room-meta">Room ${state.roomId} · Host ${state.hostName} · Deck ${state.deckCount} · Round ${state.round}${state.winner ? ` · Winner: ${state.winner}` : ''}</div>
-    </div>
-    <div class="room-meta"></div>
-  `;
-  app.appendChild(header);
+  const shell = buildRoomShell({
+    app,
+    state,
+    title: 'Tile Rummy',
+    themeMode,
+    handlers,
+    showChat: state.started
+  });
+  app.appendChild(shell.header);
 
   document.body.dataset.groupFace = groupFaceMode || 'classic';
   document.body.dataset.colorblind = colorBlindMode ? 'on' : 'off';
@@ -100,7 +54,7 @@ export function renderGame(app, context) {
   helpButton.className = 'secondary';
   helpButton.textContent = 'How to play';
   helpButton.addEventListener('click', () => handlers.toggleHelp());
-  header.appendChild(helpButton);
+  shell.headerActions.appendChild(helpButton);
 
   if (yourTurn) {
     const banner = document.createElement('div');
@@ -163,7 +117,12 @@ export function renderGame(app, context) {
         .forEach((entry) => {
           const row = document.createElement('div');
           row.className = 'score-row';
-          row.innerHTML = `<span>${entry.name}</span><span>${entry.score}</span>`;
+          const name = document.createElement('span');
+          name.textContent = entry.name;
+          const score = document.createElement('span');
+          score.textContent = entry.score;
+          row.appendChild(name);
+          row.appendChild(score);
           scoreList.appendChild(row);
         });
       modal.appendChild(scoreList);
@@ -348,37 +307,7 @@ export function renderGame(app, context) {
     });
   }
 
-  const layout = document.createElement('div');
-  layout.className = 'layout';
-
-  const side = document.createElement('div');
-  side.className = 'side stack';
-
-  const center = document.createElement('div');
-  center.className = 'center stack';
-
-  const playerPanel = document.createElement('div');
-  playerPanel.className = 'panel stack players';
-
-  const playersTitle = document.createElement('h2');
-  playersTitle.textContent = 'Players';
-  playerPanel.appendChild(playersTitle);
-
-  state.players.forEach((player) => {
-    const row = document.createElement('div');
-    row.className = `player ${state.currentPlayer === player.name ? 'current' : ''}`;
-    const aiTag = player.isAi ? ` · ${player.aiLevel === 'advanced' ? 'AI+' : 'AI'}` : '';
-    row.innerHTML = `
-      <div>
-        <div class="player-name">${player.name}</div>
-        <div class="player-status">${player.connected ? 'Connected' : 'Offline'}${aiTag}${player.autoPlay ? ' · Auto' : ''}</div>
-      </div>
-      <div class="player-status">Tiles ${player.handCount}</div>
-    `;
-    playerPanel.appendChild(row);
-  });
-
-  side.appendChild(playerPanel);
+  const { side, center, layout, chatPanel } = shell;
 
   // Scores panel removed for simpler UI.
 
@@ -541,78 +470,12 @@ export function renderGame(app, context) {
 
   if (!state.started) {
     layout.classList.add('lobby-layout');
-    layout.appendChild(side);
     app.appendChild(layout);
     return;
   }
-
-  const chatPanel = document.createElement('div');
-  chatPanel.className = 'panel stack chat';
-  const chatTitle = document.createElement('h2');
-  chatTitle.textContent = 'Chat';
-  chatPanel.appendChild(chatTitle);
-
-  const chatList = document.createElement('div');
-  chatList.className = 'chat-list';
-  const chatBanner = document.createElement('div');
-  chatBanner.className = 'chat-banner';
-  chatBanner.textContent = 'New messages';
-  chatBanner.addEventListener('click', () => {
-    chatStickToBottom = true;
-    chatList.scrollTop = chatList.scrollHeight;
-    chatBanner.classList.remove('active');
-  });
-  (state.chatHistory || []).slice(-100).forEach((entry) => {
-    const row = document.createElement('div');
-    row.className = 'chat-item';
-    row.innerHTML = `<span class="chat-name">${entry.player}</span><span class="chat-text">${entry.text}</span>`;
-    chatList.appendChild(row);
-  });
-  chatList.addEventListener('scroll', () => {
-    chatScrollTop = chatList.scrollTop;
-    const nearBottom = chatList.scrollTop + chatList.clientHeight >= chatList.scrollHeight - 8;
-    chatStickToBottom = nearBottom;
-    if (nearBottom) {
-      chatBanner.classList.remove('active');
-    }
-  });
-  const chatCount = (state.chatHistory || []).length;
-  if (chatCount > lastChatCount && chatStickToBottom) {
-    chatList.scrollTop = chatList.scrollHeight;
-  } else {
-    chatList.scrollTop = Math.min(chatScrollTop, chatList.scrollHeight);
+  if (chatPanel) {
+    side.appendChild(chatPanel);
   }
-  if (chatCount > lastChatCount && !chatStickToBottom) {
-    chatBanner.classList.add('active');
-  }
-  lastChatCount = chatCount;
-  chatPanel.appendChild(chatBanner);
-  chatPanel.appendChild(chatList);
-
-  const chatForm = document.createElement('form');
-  chatForm.className = 'chat-form';
-  const chatInput = document.createElement('input');
-  chatInput.type = 'text';
-  chatInput.maxLength = 240;
-  chatInput.placeholder = 'Type a message...';
-  const chatButton = document.createElement('button');
-  chatButton.type = 'submit';
-  chatButton.textContent = 'Send';
-  chatForm.appendChild(chatInput);
-  chatForm.appendChild(chatButton);
-  chatForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const text = chatInput.value.trim();
-    if (!text) {
-      return;
-    }
-    handlers.sendChat(text);
-    chatInput.value = '';
-  });
-  chatPanel.appendChild(chatForm);
-  side.appendChild(chatPanel);
-
-  layout.appendChild(side);
 
   const tablePanel = document.createElement('div');
   tablePanel.className = 'panel table';
